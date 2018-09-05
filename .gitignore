@@ -1,0 +1,19 @@
+# Vim-related files
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+cscope.*
+
+# protobuf related
+/pb/bin
+
+# output related
+/_output
+
+# Go test binaries
+*.test
+
+# env file
+.env
