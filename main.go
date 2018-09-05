@@ -16,12 +16,15 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/howeyc/fsnotify"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/unicell/trafficserver_exporter/collector"
 
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -75,9 +78,11 @@ func watchConfig(fileName string, mapper *mapper.MetricMapper) {
 
 func main() {
 	var (
-		listenAddress   = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9122").String()
+		listenAddress   = kingpin.Flag("web.listen-address", "The address on which to expose the web interface and generated Prometheus metrics.").Default(":9122").Short('l').String()
 		metricsEndpoint = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-		mappingConfig   = kingpin.Flag("trafficserver.mapping-config", "Metric mapping configuration file name.").String()
+		mappingConfig   = kingpin.Flag("trafficserver.mapping-config", "Metric mapping configuration file name.").Short('c').String()
+		timeout         = kingpin.Flag("timeout", "Timeout waiting for http request").Default("5s").Short('t').Duration()
+		endpoint        = kingpin.Flag("endpoint", "Endpoint to fetch trafficserver statistics from").Required().String()
 	)
 
 	log.AddFlags(kingpin.CommandLine)
@@ -94,7 +99,17 @@ func main() {
 	events := make(chan Events, 1024)
 	defer close(events)
 
+	url, err := url.Parse(*endpoint)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	httpClient := &http.Client{
+		Timeout: *timeout,
+	}
+
 	prometheus.MustRegister(version.NewCollector("trafficserver_exporter"))
+	prometheus.MustRegister(collector.NewGlobalCollector(httpClient, url))
 
 	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
 	if *mappingConfig != "" {
