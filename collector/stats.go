@@ -28,7 +28,7 @@ const (
 	namespace = "trafficserver"
 )
 
-type GlobalCollector struct {
+type StatsCollector struct {
 	client *http.Client
 	url    *url.URL
 
@@ -36,9 +36,9 @@ type GlobalCollector struct {
 	totalScrapes, jsonParseFailures prometheus.Counter
 }
 
-func NewGlobalCollector(client *http.Client, url *url.URL) *GlobalCollector {
+func NewStatsCollector(client *http.Client, url *url.URL) *StatsCollector {
 	subsystem := ""
-	return &GlobalCollector{
+	return &StatsCollector{
 		client: client,
 		url:    url,
 		up: prometheus.NewGauge(prometheus.GaugeOpts{
@@ -57,14 +57,14 @@ func NewGlobalCollector(client *http.Client, url *url.URL) *GlobalCollector {
 }
 
 // implements prometheus.Collector interface
-func (c *GlobalCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c *StatsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.up.Desc()
 	ch <- c.totalScrapes.Desc()
 	ch <- c.jsonParseFailures.Desc()
 }
 
 // implements prometheus.Collector interface
-func (c *GlobalCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *StatsCollector) Collect(ch chan<- prometheus.Metric) {
 	c.totalScrapes.Inc()
 	defer func() {
 		ch <- c.up
@@ -81,7 +81,7 @@ func (c *GlobalCollector) Collect(ch chan<- prometheus.Metric) {
 	c.up.Set(1)
 }
 
-func (c *GlobalCollector) fetchAndDecode() (map[string]interface{}, error) {
+func (c *StatsCollector) fetchAndDecode() (map[string]interface{}, error) {
 	var stats map[string]interface{}
 
 	u := *c.url

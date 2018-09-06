@@ -109,7 +109,7 @@ func main() {
 	}
 
 	prometheus.MustRegister(version.NewCollector("trafficserver_exporter"))
-	prometheus.MustRegister(collector.NewGlobalCollector(httpClient, url))
+	prometheus.MustRegister(collector.NewStatsCollector(httpClient, url))
 
 	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
 	if *mappingConfig != "" {
