@@ -25,6 +25,8 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 
+	. "github.com/unicell/trafficserver_exporter/event"
+
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
 
@@ -186,49 +188,6 @@ func (c *HistogramContainer) Get(metricName string, labels prometheus.Labels, he
 	return histogram, nil
 }
 
-type Event interface {
-	MetricName() string
-	Value() float64
-	Labels() map[string]string
-	MetricType() mapper.MetricType
-}
-
-type CounterEvent struct {
-	metricName string
-	value      float64
-	labels     map[string]string
-}
-
-func (c *CounterEvent) MetricName() string            { return c.metricName }
-func (c *CounterEvent) Value() float64                { return c.value }
-func (c *CounterEvent) Labels() map[string]string     { return c.labels }
-func (c *CounterEvent) MetricType() mapper.MetricType { return mapper.MetricTypeCounter }
-
-type GaugeEvent struct {
-	metricName string
-	value      float64
-	relative   bool
-	labels     map[string]string
-}
-
-func (g *GaugeEvent) MetricName() string            { return g.metricName }
-func (g *GaugeEvent) Value() float64                { return g.value }
-func (c *GaugeEvent) Labels() map[string]string     { return c.labels }
-func (c *GaugeEvent) MetricType() mapper.MetricType { return mapper.MetricTypeGauge }
-
-type TimerEvent struct {
-	metricName string
-	value      float64
-	labels     map[string]string
-}
-
-func (t *TimerEvent) MetricName() string            { return t.metricName }
-func (t *TimerEvent) Value() float64                { return t.value }
-func (c *TimerEvent) Labels() map[string]string     { return c.labels }
-func (c *TimerEvent) MetricType() mapper.MetricType { return mapper.MetricTypeTimer }
-
-type Events []Event
-
 type Exporter struct {
 	Counters   *CounterContainer
 	Gauges     *GaugeContainer
@@ -316,7 +275,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				)
 
 				if err == nil {
-					if ev.relative {
+					if ev.Relative() {
 						gauge.Add(event.Value())
 					} else {
 						gauge.Set(event.Value())
@@ -388,41 +347,4 @@ func NewExporter(mapper *mapper.MetricMapper) *Exporter {
 		Histograms: NewHistogramContainer(mapper),
 		mapper:     mapper,
 	}
-}
-
-func buildEvent(statType, metric string, value float64, relative bool, labels map[string]string) (Event, error) {
-	switch statType {
-	case "c":
-		return &CounterEvent{
-			metricName: metric,
-			value:      float64(value),
-			labels:     labels,
-		}, nil
-	case "g":
-		return &GaugeEvent{
-			metricName: metric,
-			value:      float64(value),
-			relative:   relative,
-			labels:     labels,
-		}, nil
-	case "ms", "h":
-		return &TimerEvent{
-			metricName: metric,
-			value:      float64(value),
-			labels:     labels,
-		}, nil
-	case "s":
-		return nil, fmt.Errorf("No support for StatsD sets")
-	default:
-		return nil, fmt.Errorf("Bad stat type %s", statType)
-	}
-}
-
-func lineToEvents(line string) Events {
-	events := Events{}
-	if line == "" {
-		return events
-	}
-
-	return events
 }

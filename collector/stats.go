@@ -20,6 +20,8 @@ import (
 	"net/url"
 	"path"
 
+	. "github.com/unicell/trafficserver_exporter/event"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )
@@ -31,16 +33,18 @@ const (
 type StatsCollector struct {
 	client *http.Client
 	url    *url.URL
+	ch     chan<- Events
 
 	up                              prometheus.Gauge
 	totalScrapes, jsonParseFailures prometheus.Counter
 }
 
-func NewStatsCollector(client *http.Client, url *url.URL) *StatsCollector {
+func NewStatsCollector(client *http.Client, url *url.URL, ch chan<- Events) *StatsCollector {
 	subsystem := ""
 	return &StatsCollector{
 		client: client,
 		url:    url,
+		ch:     ch,
 		up: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: prometheus.BuildFQName(namespace, subsystem, "up"),
 			Help: "Was the last scrape of the ElasticSearch cluster health endpoint successful.",

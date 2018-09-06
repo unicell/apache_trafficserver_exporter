@@ -25,6 +25,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/unicell/trafficserver_exporter/collector"
+	. "github.com/unicell/trafficserver_exporter/event"
 
 	"github.com/prometheus/statsd_exporter/pkg/mapper"
 )
@@ -109,7 +110,7 @@ func main() {
 	}
 
 	prometheus.MustRegister(version.NewCollector("trafficserver_exporter"))
-	prometheus.MustRegister(collector.NewStatsCollector(httpClient, url))
+	prometheus.MustRegister(collector.NewStatsCollector(httpClient, url, events))
 
 	mapper := &mapper.MetricMapper{MappingsCount: mappingsCount}
 	if *mappingConfig != "" {
