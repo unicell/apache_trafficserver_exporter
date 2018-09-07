@@ -19,6 +19,8 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
+	"strings"
 
 	. "github.com/unicell/trafficserver_exporter/event"
 
@@ -76,12 +78,29 @@ func (c *StatsCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- c.jsonParseFailures
 	}()
 
-	_, err := c.fetchAndDecode()
+	data, err := c.fetchAndDecode()
 	if err != nil {
 		c.up.Set(0)
-		log.Errorln("Failed to fetch and decode JSON stats:", err)
+		log.Errorln("Failed to fetch and decode JSON data:", err)
 		return
 	}
+
+	stats, ok := data["global"]
+	if !ok {
+		c.up.Set(0)
+		log.Errorln("Failed to read global key from JSON data:", err)
+		return
+	}
+
+	events := Events{}
+	for k, v := range stats.(map[string]interface{}) {
+		ev, err := c.buildEvent(k, v)
+		if err != nil || ev == nil {
+			continue
+		}
+		events = append(events, ev)
+	}
+	c.ch <- events
 	c.up.Set(1)
 }
 
@@ -113,4 +132,27 @@ func (c *StatsCollector) fetchAndDecode() (map[string]interface{}, error) {
 	}
 
 	return stats, nil
+}
+
+func (c *StatsCollector) buildEvent(k string, v interface{}) (Event, error) {
+	if strings.Contains(k, "total") || strings.Contains(k, "count") {
+		value, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse into float type: %v", v)
+		}
+		return NewGaugeEvent(k, value, map[string]string{}, false), nil
+	} else if strings.Contains(k, "version") ||
+		strings.Contains(k, "hostname") ||
+		!strings.HasPrefix(k, "proxy") {
+		return nil, fmt.Errorf("Not interested metric")
+	} else {
+		value, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			log.Infoln("Failed to parse: ", k, " -> ", v)
+			return nil, fmt.Errorf("Failed to parse into float type: %v", v)
+		}
+		return NewGaugeEvent(k, value, map[string]string{}, false), nil
+	}
+
+	return nil, fmt.Errorf("No Event built")
 }
